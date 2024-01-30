@@ -266,7 +266,7 @@ func TestValidate(t *testing.T) {
 			r := reconciler(cl)
 			r.newStorageClientFunc = tt.fakeStorageClientFunc
 
-			bcp, err := r.getBackup(ctx, tt.cr)
+			bcp, err := getBackup(ctx, cl, tt.cr)
 			if err != nil {
 				t.Fatal(err)
 			}
