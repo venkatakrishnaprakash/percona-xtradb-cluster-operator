@@ -14,6 +14,7 @@ import (
 
 	api "github.com/percona/percona-xtradb-cluster-operator/pkg/apis/pxc/v1"
 	fakestorage "github.com/percona/percona-xtradb-cluster-operator/pkg/pxc/backup/storage/fake"
+	"github.com/percona/percona-xtradb-cluster-operator/version"
 )
 
 func readDefaultCR(t *testing.T, name, namespace string) *api.PerconaXtraDBCluster {
@@ -138,6 +139,9 @@ func reconciler(cl client.Client) *ReconcilePerconaXtraDBClusterRestore {
 		client:               cl,
 		scheme:               cl.Scheme(),
 		newStorageClientFunc: fakestorage.NewFakeClient,
+		serverVersion: &version.ServerVersion{
+			Platform: version.PlatformKubernetes,
+		},
 	}
 }
 
@@ -146,6 +150,7 @@ func buildFakeClient(objs ...runtime.Object) client.Client {
 	s := scheme.Scheme
 
 	s.AddKnownTypes(api.SchemeGroupVersion, new(api.PerconaXtraDBClusterRestore))
+	s.AddKnownTypes(api.SchemeGroupVersion, new(api.PerconaXtraDBClusterRestoreList))
 	s.AddKnownTypes(api.SchemeGroupVersion, new(api.PerconaXtraDBClusterBackup))
 	s.AddKnownTypes(api.SchemeGroupVersion, new(api.PerconaXtraDBCluster))
 

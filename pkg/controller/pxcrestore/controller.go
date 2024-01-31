@@ -164,6 +164,11 @@ func (r *ReconcilePerconaXtraDBClusterRestore) Reconcile(ctx context.Context, re
 		return rr, errors.Wrap(err, "get backup")
 	}
 
+	restorer, err := r.getRestorer(cr, bcp, cluster)
+	if err != nil {
+		return rr, errors.Wrap(err, "failed to get restorer")
+	}
+
 	switch statusState {
 	case api.RestoreNew:
 		annotations := cr.GetAnnotations()
@@ -174,7 +179,7 @@ func (r *ReconcilePerconaXtraDBClusterRestore) Reconcile(ctx context.Context, re
 			statusMsg = fmt.Sprintf("Backup doesn't guarantee consistent recovery with PITR. Annotate PerconaXtraDBClusterRestore with %s to force it.", api.AnnotationUnsafePITR)
 			return rr, nil
 		}
-		err = r.validate(ctx, cr, bcp, cluster)
+		err = validate(ctx, restorer, cr)
 		if err != nil {
 			if errors.Is(err, errWaitValidate) {
 				return rr, nil
@@ -198,8 +203,7 @@ func (r *ReconcilePerconaXtraDBClusterRestore) Reconcile(ctx context.Context, re
 		}
 
 		log.Info("starting restore", "cluster", cr.Spec.PXCCluster, "backup", cr.Spec.BackupName)
-		err = r.restore(ctx, cr, bcp, cluster)
-		if err != nil {
+		if err := createRestoreJob(ctx, r.client, restorer, false); err != nil {
 			if errors.Is(err, errWaitInit) {
 				return rr, nil
 			}
@@ -208,10 +212,6 @@ func (r *ReconcilePerconaXtraDBClusterRestore) Reconcile(ctx context.Context, re
 		}
 		statusState = api.RestoreRestore
 	case api.RestoreRestore:
-		restorer, err := r.getRestorer(cr, bcp, cluster)
-		if err != nil {
-			return rr, errors.Wrap(err, "failed to get restorer")
-		}
 		restorerJob, err := restorer.Job()
 		if err != nil {
 			return rr, errors.Wrap(err, "failed to create restore job")
@@ -260,8 +260,7 @@ func (r *ReconcilePerconaXtraDBClusterRestore) Reconcile(ctx context.Context, re
 			}
 
 			log.Info("point-in-time recovering", "cluster", cr.Spec.PXCCluster)
-			err = r.pitr(ctx, cr, bcp, cluster)
-			if err != nil {
+			if err := createRestoreJob(ctx, r.client, restorer, true); err != nil {
 				if errors.Is(err, errWaitInit) {
 					return rr, nil
 				}
@@ -274,10 +273,6 @@ func (r *ReconcilePerconaXtraDBClusterRestore) Reconcile(ctx context.Context, re
 		log.Info("starting cluster", "cluster", cr.Spec.PXCCluster)
 		statusState = api.RestoreStartCluster
 	case api.RestorePITR:
-		restorer, err := r.getRestorer(cr, bcp, cluster)
-		if err != nil {
-			return rr, errors.Wrap(err, "failed to get restorer")
-		}
 		restorerJob, err := restorer.PITRJob()
 		if err != nil {
 			return rr, errors.Wrap(err, "failed to create restore job")
@@ -323,10 +318,6 @@ func (r *ReconcilePerconaXtraDBClusterRestore) Reconcile(ctx context.Context, re
 			}
 		} else {
 			if cluster.Status.ObservedGeneration == cluster.Generation && cluster.Status.PXC.Status == api.AppStateReady {
-				restorer, err := r.getRestorer(cr, bcp, cluster)
-				if err != nil {
-					return rr, errors.Wrap(err, "failed to get restorer")
-				}
 				if err := restorer.Finalize(ctx); err != nil {
 					return rr, errors.Wrap(err, "failed to finalize restore")
 				}
@@ -340,4 +331,51 @@ func (r *ReconcilePerconaXtraDBClusterRestore) Reconcile(ctx context.Context, re
 	}
 
 	return rr, nil
+}
+
+func createRestoreJob(ctx context.Context, cl client.Client, restorer Restorer, pitr bool) error {
+	if err := restorer.Init(ctx); err != nil {
+		return errors.Wrap(err, "failed to init restore")
+	}
+
+	job, err := restorer.Job()
+	if err != nil {
+		return errors.Wrap(err, "failed to get restore job")
+	}
+	if pitr {
+		job, err = restorer.PITRJob()
+		if err != nil {
+			return errors.Wrap(err, "failed to create pitr restore job")
+		}
+	}
+
+	if err := cl.Create(ctx, job); err != nil {
+		return errors.Wrap(err, "create job")
+	}
+
+	return nil
+}
+
+func validate(ctx context.Context, restorer Restorer, cr *api.PerconaXtraDBClusterRestore) error {
+	job, err := restorer.Job()
+	if err != nil {
+		return errors.Wrap(err, "failed to create restore job")
+	}
+	if err := restorer.ValidateJob(ctx, job); err != nil {
+		return errors.Wrap(err, "failed to validate job")
+	}
+
+	if cr.Spec.PITR != nil {
+		job, err := restorer.PITRJob()
+		if err != nil {
+			return errors.Wrap(err, "failed to create pitr restore job")
+		}
+		if err := restorer.ValidateJob(ctx, job); err != nil {
+			return errors.Wrap(err, "failed to validate job")
+		}
+	}
+	if err := restorer.Validate(ctx); err != nil {
+		return errors.Wrap(err, "failed to validate backup existence")
+	}
+	return nil
 }

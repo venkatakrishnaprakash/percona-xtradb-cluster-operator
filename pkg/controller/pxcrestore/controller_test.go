@@ -270,7 +270,11 @@ func TestValidate(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			err = r.validate(ctx, tt.cr, bcp, tt.cluster)
+			restorer, err := r.getRestorer(tt.cr, bcp, tt.cluster)
+			if err != nil {
+				t.Fatal(err)
+			}
+			err = validate(ctx, restorer, tt.cr)
 			errStr := ""
 			if err != nil {
 				errStr = err.Error()

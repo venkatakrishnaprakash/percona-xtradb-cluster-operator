@@ -39,11 +39,11 @@ func (s *s3) Init(context.Context) error     { return nil }
 func (s *s3) Finalize(context.Context) error { return nil }
 
 func (s *s3) Job() (*batchv1.Job, error) {
-	return backup.RestoreJob(s.cr, s.bcp, s.cluster, s.bcp.Status.Destination, false)
+	return backup.RestoreJob(s.cr, s.bcp, s.cluster, s.bcp.Status.Destination, s.scheme, false)
 }
 
 func (s *s3) PITRJob() (*batchv1.Job, error) {
-	return backup.RestoreJob(s.cr, s.bcp, s.cluster, s.bcp.Status.Destination, true)
+	return backup.RestoreJob(s.cr, s.bcp, s.cluster, s.bcp.Status.Destination, s.scheme, true)
 }
 
 func (s *s3) ValidateJob(ctx context.Context, job *batchv1.Job) error {
@@ -123,7 +123,7 @@ func (s *pvc) Validate(ctx context.Context) error {
 }
 
 func (s *pvc) Job() (*batchv1.Job, error) {
-	return backup.RestoreJob(s.cr, s.bcp, s.cluster, "", false)
+	return backup.RestoreJob(s.cr, s.bcp, s.cluster, "", s.scheme, false)
 }
 
 func (s *pvc) PITRJob() (*batchv1.Job, error) {
@@ -204,11 +204,11 @@ func (s *azure) Init(context.Context) error     { return nil }
 func (s *azure) Finalize(context.Context) error { return nil }
 
 func (s *azure) Job() (*batchv1.Job, error) {
-	return backup.RestoreJob(s.cr, s.bcp, s.cluster, s.bcp.Status.Destination, false)
+	return backup.RestoreJob(s.cr, s.bcp, s.cluster, s.bcp.Status.Destination, s.scheme, false)
 }
 
 func (s *azure) PITRJob() (*batchv1.Job, error) {
-	return backup.RestoreJob(s.cr, s.bcp, s.cluster, s.bcp.Status.Destination, true)
+	return backup.RestoreJob(s.cr, s.bcp, s.cluster, s.bcp.Status.Destination, s.scheme, true)
 }
 
 func (s *azure) Validate(ctx context.Context) error {
