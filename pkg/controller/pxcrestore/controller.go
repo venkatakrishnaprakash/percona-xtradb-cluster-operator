@@ -235,10 +235,6 @@ func (r *ReconcilePerconaXtraDBClusterRestore) Reconcile(ctx context.Context, re
 			return rr, nil
 		}
 
-		if err := restorer.Finalize(ctx); err != nil {
-			return rr, errors.Wrap(err, "failed to finalize restore")
-		}
-
 		if cr.Spec.PITR != nil {
 			if cluster.Spec.Pause {
 				err = k8sretry.RetryOnConflict(k8sretry.DefaultRetry, func() error {
@@ -304,9 +300,6 @@ func (r *ReconcilePerconaXtraDBClusterRestore) Reconcile(ctx context.Context, re
 			log.Info("Waiting for restore job to finish", "job", job.Name)
 			return rr, nil
 		}
-		if err := restorer.Finalize(ctx); err != nil {
-			return rr, errors.Wrap(err, "failed to finalize restore")
-		}
 
 		log.Info("starting cluster", "cluster", cr.Spec.PXCCluster)
 		statusState = api.RestoreStartCluster
@@ -330,6 +323,14 @@ func (r *ReconcilePerconaXtraDBClusterRestore) Reconcile(ctx context.Context, re
 			}
 		} else {
 			if cluster.Status.ObservedGeneration == cluster.Generation && cluster.Status.PXC.Status == api.AppStateReady {
+				restorer, err := r.getRestorer(cr, bcp, cluster)
+				if err != nil {
+					return rr, errors.Wrap(err, "failed to get restorer")
+				}
+				if err := restorer.Finalize(ctx); err != nil {
+					return rr, errors.Wrap(err, "failed to finalize restore")
+				}
+
 				statusState = api.RestoreSucceeded
 				return rr, nil
 			}
