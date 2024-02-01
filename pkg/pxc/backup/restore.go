@@ -256,8 +256,8 @@ func RestoreJob(cr *api.PerconaXtraDBClusterRestore, bcp *api.PerconaXtraDBClust
 	if err := controllerutil.SetControllerReference(cr, job, scheme); err != nil {
 		return nil, errors.Wrap(err, "set controller reference")
 	}
-	for _, or := range job.OwnerReferences {
-		or.BlockOwnerDeletion = nil
+	for i := range job.OwnerReferences {
+		job.OwnerReferences[i].BlockOwnerDeletion = nil
 	}
 	return job, nil
 }
