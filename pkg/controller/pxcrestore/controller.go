@@ -282,7 +282,7 @@ func (r *ReconcilePerconaXtraDBClusterRestore) Reconcile(ctx context.Context, re
 			Name:      restorerJob.Name,
 			Namespace: restorerJob.Namespace,
 		}, job); err != nil {
-			return rr, errors.Wrap(err, "failed to get restore job")
+			return rr, errors.Wrap(err, "failed to get pitr job")
 		}
 
 		finished, err := isJobFinished(job)
@@ -349,7 +349,7 @@ func createRestoreJob(ctx context.Context, cl client.Client, restorer Restorer, 
 		}
 	}
 
-	if err := cl.Create(ctx, job); err != nil {
+	if err := cl.Create(ctx, job); err != nil && !k8serrors.IsAlreadyExists(err) {
 		return errors.Wrap(err, "create job")
 	}
 

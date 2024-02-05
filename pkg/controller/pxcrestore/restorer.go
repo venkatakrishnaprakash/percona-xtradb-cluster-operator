@@ -108,14 +108,8 @@ func (s *pvc) Validate(ctx context.Context) error {
 
 	switch pod.Status.Phase {
 	case corev1.PodFailed:
-		if err := s.k8sClient.Delete(ctx, pod); err != nil {
-			return errors.Wrap(err, "failed to delete")
-		}
 		return errors.Errorf("backup files not found on %s", destination)
 	case corev1.PodSucceeded:
-		if err := s.k8sClient.Delete(ctx, pod); err != nil {
-			return errors.Wrap(err, "failed to delete")
-		}
 		return nil
 	default:
 		return errWaitValidate
@@ -168,11 +162,11 @@ func (s *pvc) Init(ctx context.Context) error {
 		}
 
 		err = s.k8sClient.Create(ctx, svc)
-		if err != nil {
+		if client.IgnoreAlreadyExists(err) != nil {
 			return errors.Wrap(err, "create service")
 		}
 		err = s.k8sClient.Create(ctx, pod)
-		if err != nil {
+		if client.IgnoreAlreadyExists(err) != nil {
 			return errors.Wrap(err, "create pod")
 		}
 	}
@@ -192,6 +186,10 @@ func (s *pvc) Finalize(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
+	if err := s.k8sClient.Delete(ctx, pod); client.IgnoreNotFound(err) != nil {
+		return errors.Wrap(err, "failed to delete pvc pod")
+	}
+	pod.Name += "-verify"
 	if err := s.k8sClient.Delete(ctx, pod); client.IgnoreNotFound(err) != nil {
 		return errors.Wrap(err, "failed to delete pvc pod")
 	}

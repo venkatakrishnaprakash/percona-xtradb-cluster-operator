@@ -149,15 +149,30 @@ func reconciler(cl client.Client) *ReconcilePerconaXtraDBClusterRestore {
 func buildFakeClient(objs ...runtime.Object) client.Client {
 	s := scheme.Scheme
 
-	s.AddKnownTypes(api.SchemeGroupVersion, new(api.PerconaXtraDBClusterRestore))
-	s.AddKnownTypes(api.SchemeGroupVersion, new(api.PerconaXtraDBClusterRestoreList))
-	s.AddKnownTypes(api.SchemeGroupVersion, new(api.PerconaXtraDBClusterBackup))
-	s.AddKnownTypes(api.SchemeGroupVersion, new(api.PerconaXtraDBCluster))
+	types := []runtime.Object{
+		new(api.PerconaXtraDBClusterRestore),
+		new(api.PerconaXtraDBClusterRestoreList),
+		new(api.PerconaXtraDBClusterBackup),
+		new(api.PerconaXtraDBCluster),
+	}
+
+	s.AddKnownTypes(api.SchemeGroupVersion, types...)
+
+	toClientObj := func(objs []runtime.Object) []client.Object {
+		cliObjs := make([]client.Object, 0, len(objs))
+		for _, obj := range objs {
+			cliObj, ok := obj.(client.Object)
+			if ok {
+				cliObjs = append(cliObjs, cliObj)
+			}
+		}
+		return cliObjs
+	}
 
 	cl := fake.NewClientBuilder().
 		WithScheme(s).
 		WithRuntimeObjects(objs...).
-		WithStatusSubresource(&api.PerconaXtraDBClusterRestore{}).
+		WithStatusSubresource(toClientObj(types)...).
 		Build()
 
 	return cl
