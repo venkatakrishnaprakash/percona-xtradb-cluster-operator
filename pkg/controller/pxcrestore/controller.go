@@ -90,6 +90,7 @@ func (r *ReconcilePerconaXtraDBClusterRestore) Reconcile(ctx context.Context, re
 	log := logf.FromContext(ctx)
 
 	rr := reconcile.Result{
+		// TODO: do not depend on the RequeueAfter
 		RequeueAfter: time.Second * 5,
 	}
 
