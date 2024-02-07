@@ -194,8 +194,7 @@ func (r *ReconcilePerconaXtraDBClusterRestore) Reconcile(ctx context.Context, re
 	case api.RestoreStopCluster:
 		err = stopCluster(ctx, r.client, cluster.DeepCopy())
 		if err != nil {
-			switch err {
-			case errWaitingPods, errWaitingPVC:
+			if errors.Is(err, errWaitingPods) || errors.Is(err, errWaitingPVC) {
 				log.Info("waiting for cluster to stop", "cluster", cr.Spec.PXCCluster, "msg", err.Error())
 				return rr, nil
 			}
@@ -253,7 +252,7 @@ func (r *ReconcilePerconaXtraDBClusterRestore) Reconcile(ctx context.Context, re
 				}
 				return rr, nil
 			} else {
-				if cluster.Status.ObservedGeneration == cluster.Generation && cluster.Status.PXC.Status == api.AppStateReady {
+				if cluster.Status.ObservedGeneration != cluster.Generation || cluster.Status.PXC.Status != api.AppStateReady {
 					log.Info("Waiting for cluster to start", "cluster", cluster.Name)
 					return rr, nil
 				}

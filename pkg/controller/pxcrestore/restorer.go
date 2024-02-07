@@ -141,16 +141,12 @@ func (s *pvc) Init(ctx context.Context) error {
 
 	initInProcess := true
 
-	if err := s.k8sClient.Get(ctx, types.NamespacedName{Name: svc.Name, Namespace: svc.Namespace}, svc); err != nil {
-		if k8serrors.IsNotFound(err) {
-			initInProcess = false
-		}
+	if err := s.k8sClient.Get(ctx, types.NamespacedName{Name: svc.Name, Namespace: svc.Namespace}, svc); k8serrors.IsNotFound(err) {
+		initInProcess = false
 	}
 
-	if err := s.k8sClient.Get(ctx, types.NamespacedName{Name: pod.Name, Namespace: svc.Namespace}, pod); err != nil {
-		if k8serrors.IsNotFound(err) {
-			initInProcess = false
-		}
+	if err := s.k8sClient.Get(ctx, types.NamespacedName{Name: pod.Name, Namespace: svc.Namespace}, pod); k8serrors.IsNotFound(err) {
+		initInProcess = false
 	}
 
 	if !initInProcess {
